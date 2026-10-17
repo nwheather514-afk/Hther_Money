@@ -280,3 +280,13 @@ input {
   box-shadow: none;
   cursor: not-allowed;
 }
+
+.error {
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border: var(--line);
+  border-radius: 12px;
+  background: #ffe8e8;
+  font-size: 14px;
+  color: #c0392b;
+}

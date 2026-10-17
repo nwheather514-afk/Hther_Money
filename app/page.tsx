@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 const CATEGORIES = ["식비", "카페", "교통", "쇼핑", "구독", "기타"] as const;
 type Category = (typeof CATEGORIES)[number];
 
 type Expense = {
-  id: number;
+  id: string;
   amount: number;
   place: string;
   category: Category;
@@ -39,11 +40,23 @@ export default function Home() {
   const [category, setCategory] = useState<Category>("식비");
   const [date, setDate] = useState("");
   const [memo, setMemo] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const t = localToday();
     setToday(t);
     setDate(t);
+
+    supabase
+      .from("expenses")
+      .select("id, amount, place, category, date, memo")
+      .order("date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (error) setError("지출 목록을 불러오지 못했어요");
+        else setExpenses(data as Expense[]);
+      });
   }, []);
 
   const monthKey = today.slice(0, 7);
@@ -61,13 +74,22 @@ export default function Home() {
   const monthNumber = today ? Number(today.slice(5, 7)) : null;
   const canSubmit = Number(amount) > 0 && place.trim() !== "" && date !== "";
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!canSubmit) return;
-    setExpenses((prev) => [
-      { id: Date.now(), amount: Number(amount), place: place.trim(), category, date, memo: memo.trim() },
-      ...prev,
-    ]);
+    if (!canSubmit || saving) return;
+    setSaving(true);
+    setError("");
+    const { data, error } = await supabase
+      .from("expenses")
+      .insert({ amount: Number(amount), place: place.trim(), category, date, memo: memo.trim() })
+      .select("id, amount, place, category, date, memo")
+      .single();
+    setSaving(false);
+    if (error) {
+      setError("저장하지 못했어요. 다시 시도해 주세요");
+      return;
+    }
+    setExpenses((prev) => [data as Expense, ...prev]);
     setAmount("");
     setPlace("");
     setMemo("");
@@ -83,6 +105,8 @@ export default function Home() {
         <p className="label">{monthNumber ? `${monthNumber}월에 쓴 돈` : "이번 달에 쓴 돈"}</p>
         <p className="total">{won(monthTotal)}</p>
       </header>
+
+      {error && !open && <p className="error">{error}</p>}
 
       <section className="list">
         {groups.length === 0 ? (
@@ -182,8 +206,10 @@ export default function Home() {
               />
             </label>
 
-            <button type="submit" className="submit" disabled={!canSubmit}>
-              추가하기
+            {error && <p className="error">{error}</p>}
+
+            <button type="submit" className="submit" disabled={!canSubmit || saving}>
+              {saving ? "저장 중..." : "추가하기"}
             </button>
           </form>
         </div>
