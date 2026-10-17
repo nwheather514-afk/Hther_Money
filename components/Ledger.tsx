@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { CATEGORIES, won, type Category, type Expense } from "@/lib/expenses";
+import { resizeToBase64 } from "@/lib/image";
 import Stats from "./Stats";
 
 function localToday() {
@@ -31,6 +32,8 @@ export default function Ledger() {
   const [memo, setMemo] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [scanning, setScanning] = useState(false);
+  const [scanNote, setScanNote] = useState("");
 
   useEffect(() => {
     const t = localToday();
@@ -63,6 +66,45 @@ export default function Ledger() {
   const monthNumber = today ? Number(today.slice(5, 7)) : null;
   const canSubmit = Number(amount) > 0 && place.trim() !== "" && date !== "";
 
+  async function scanReceipt(file: File) {
+    setScanning(true);
+    setScanNote("");
+    try {
+      const image = await resizeToBase64(file);
+      const { data: auth } = await supabase.auth.getSession();
+      const res = await fetch("/api/receipt", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${auth.session?.access_token ?? ""}`,
+        },
+        body: JSON.stringify({ image, mimeType: "image/jpeg" }),
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        setScanNote(`${result.error ?? "영수증을 읽지 못했어요"}. 직접 입력해 주세요`);
+        return;
+      }
+      if (result.amount) setAmount(String(result.amount));
+      if (result.place) setPlace(result.place);
+      if (result.date) setDate(result.date);
+      const missing = [
+        !result.amount && "금액",
+        !result.date && "날짜",
+        !result.place && "사용처",
+      ].filter(Boolean);
+      setScanNote(
+        missing.length === 0
+          ? "영수증에서 읽어 채웠어요. 내용을 확인하고 저장해 주세요"
+          : `${missing.join(", ")}은(는) 읽지 못했어요. 직접 입력해 주세요`,
+      );
+    } catch {
+      setScanNote("영수증을 읽지 못했어요. 직접 입력해 주세요");
+    } finally {
+      setScanning(false);
+    }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit || saving) return;
@@ -84,6 +126,7 @@ export default function Ledger() {
     setMemo("");
     setCategory("식비");
     setDate(today);
+    setScanNote("");
     setOpen(false);
   }
 
@@ -156,6 +199,22 @@ export default function Ledger() {
                 ✕
               </button>
             </div>
+
+            <label className={scanning ? "scan disabled" : "scan"}>
+              {scanning ? "영수증 읽는 중..." : "📷 영수증 촬영·사진 선택"}
+              <input
+                type="file"
+                accept="image/*"
+                hidden
+                disabled={scanning}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file) scanReceipt(file);
+                }}
+              />
+            </label>
+            {scanNote && <p className="note">{scanNote}</p>}
 
             <label>
               금액

@@ -458,3 +458,28 @@ input {
   display: block;
   margin: 20px auto 0;
 }
+
+.sheet label.scan {
+  align-items: center;
+  padding: 13px;
+  border: 2px dashed var(--blue);
+  border-radius: 12px;
+  background: #e8f1ff;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--blue);
+  cursor: pointer;
+}
+
+.sheet label.scan.disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.note {
+  padding: 10px 14px;
+  border: var(--line);
+  border-radius: 12px;
+  background: #fff6d6;
+  font-size: 14px;
+}
