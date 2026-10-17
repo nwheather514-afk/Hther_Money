@@ -483,3 +483,20 @@ input {
   background: #fff6d6;
   font-size: 14px;
 }
+
+/* 홈 화면 앱(standalone)에서 노치·홈 인디케이터와 겹치지 않게 */
+.app {
+  padding-top: env(safe-area-inset-top);
+}
+
+.fab {
+  bottom: calc(24px + env(safe-area-inset-bottom));
+}
+
+.app {
+  padding-bottom: calc(112px + env(safe-area-inset-bottom));
+}
+
+.app.auth {
+  padding-top: calc(48px + env(safe-area-inset-top));
+}
